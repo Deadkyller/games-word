@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<link rel="icon" type="image/png" href="assets/logo.png">
+<title>Games World</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand"><img class="brand-full" src="assets/logo-full.svg" alt="Games World"></div>
+  <button class="nav active" data-page="home">🏠 Home</button>
+  <button class="nav" data-page="statsCoop">📊 Stats Co-Op</button>
+  <button class="nav" data-page="tabelaPes">⚽ Tabela PES</button>
+  <button class="nav" data-page="palmaresOsm">🏅 Palmares OSM</button>
+  <button class="nav" data-page="players">👤 Jucători</button>
+  <div class="sidebar-note">Date Excel incluse · sincronizare Google Sheets automată la 5 minute.</div>
+</aside>
+<main class="main">
+<header class="top"><div><h2 id="pageTitle">Home</h2><p id="pageSubtitle">Dashboard Games World</p></div><div><button id="syncSettingsBtn" class="small-btn sync-btn">⚙️ Google Sheets</button><button id="syncNowBtn" class="small-btn sync-btn">☁️ Sync live</button><button id="refreshBtn" class="small-btn sync-btn">🔄 Refresh</button><span id="syncStatus" class="sync-status"><i class="sync-dot"></i><span>Offline</span></span></div></header>
+<section id="home" class="page active">
+  <div class="hero"><div><h1>Games World</h1><p>Toate statisticile PES, Co-Op și OSM într-un singur loc.</p></div></div>
+  <div class="cards">
+    <div class="card open-card" data-page="statsCoop"><h3>📊 Stats Co-Op</h3><p>Puncte, goluri, victorii, înfrângeri și foile jucătorilor.</p></div>
+    <div class="card open-card" data-page="tabelaPes"><h3>⚽ Tabela PES</h3><p>Campionat, golaveraj, serii și recorduri.</p></div>
+    <div class="card open-card" data-page="palmaresOsm"><h3>🏅 Palmares OSM</h3><p>Clasament, goluri, cartonașe, meciuri și trofee.</p></div>
+  </div>
+  <div id="homePodium" class="content-box"></div>
+</section>
+<section id="statsCoop" class="page"></section>
+<section id="tabelaPes" class="page"></section>
+<section id="palmaresOsm" class="page"></section>
+<section id="players" class="page"></section>
+<section id="admin" class="page"></section>
+</main>
+<script>
+/* Încarcă instant ultima copie sincronizată; datele Excel rămân fallback offline. */
+try { const saved=localStorage.getItem('gamesWorldLiveDataV2'); if(saved) window.GAMES_WORLD_DATA=JSON.parse(saved); } catch(e) { console.warn('Cache Games World invalid',e); }
+</script>
+<script src="js/data.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/sync.js"></script>
+<script src="js/admin.js"></script>
+<div id="syncModal" class="sync-modal" aria-hidden="true">
+  <div class="sync-card" role="dialog" aria-modal="true" aria-labelledby="syncTitle">
+    <h2 id="syncTitle">☁️ Sincronizare Google Sheets</h2>
+    <p>Aplicația include toate filele din cele trei fișiere Excel. Linkurile CSV de mai jos actualizează foaia publicată implicit pentru fiecare registru; celelalte file rămân disponibile din datele Excel incluse.</p>
+    <div class="sync-help">Pentru sincronizarea live a fiecărei file individuale, Google Sheets trebuie să furnizeze un link CSV separat pentru fiecare filă (cu GID-ul ei). Nu este necesar API key. Linkurile actuale sunt publice și sunt folosite doar pentru citire.</div>
+    <div class="sync-grid">
+      <div class="sync-field"><label>🏅 Palmares OSM</label><input readonly value="CSV public configurat"><small>Actualizează foaia publicată implicit.</small></div>
+      <div class="sync-field"><label>📊 Stats Co-Op</label><input readonly value="CSV public configurat"><small>Actualizează foaia publicată implicit.</small></div>
+      <div class="sync-field"><label>⚽ Tabela PES</label><input readonly value="CSV public configurat"><small>Actualizează foaia publicată implicit.</small></div>
+    </div>
+    <div class="sync-actions"><button id="syncCloseBtn" class="sync-secondary" type="button">Închide</button><button id="syncTestBtn" class="sync-primary" type="button">🔎 Testează & sincronizează</button></div>
+    <div id="syncLog" class="sync-log" aria-live="polite"></div>
+  </div>
+</div></body>
+</html>
