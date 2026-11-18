@@ -250,7 +250,9 @@ function init(){
   route();
   checkAdmin();
   loadProfiles();
-  window.setInterval(loadProfiles,300000);          // sincronizare la 5 minute, ca la celelalte foi
+  window.setInterval(()=>{if(!document.hidden)loadProfiles();},20000);   // profilurile se actualizează la 20 de secunde
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadProfiles();});
+  window.addEventListener('focus',loadProfiles);
   window.GW_PLAYERS={renderPlayers,adminPage};
 }
 document.addEventListener('DOMContentLoaded',init);
