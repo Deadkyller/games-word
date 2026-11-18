@@ -77,6 +77,7 @@ function renderPlayers(){
   root.innerHTML=`
     <div class="page-intro"><h3>👤 Jucători</h3><p>Profilurile jucătorilor Games World.</p></div>
     <div class="gw-toolbar"><input id="playerSearch" class="gw-input" style="max-width:420px" placeholder="Caută jucător…" value="${esc(q)}"></div>
+    ${isAdmin?'<div class="gw-toolbar"><button class="gw-btn primary small" id="addPlayerInline">➕ Adaugă jucător</button> <span class="badge">Mod administrator</span></div>':''}
     ${statusLine()?`<p style="color:var(--muted)">${statusLine()}</p>`:''}
     ${list.length?`<div class="player-grid">${list.map(p=>`
       <article class="player-card">
@@ -84,20 +85,29 @@ function renderPlayers(){
         <div class="player-info">
           <div class="player-name">${esc(p.name)}</div>
           <div class="player-meta">🏆 Concurent: <b>${p.competitor?'Da':'Nu'}</b><br>📅 Înscris: ${formatDate(p.joinDate)}<br>⏱️ Pe site: <b>${daysSince(p.joinDate)} zile</b></div>
-          <div class="player-actions"><button class="gw-btn primary small" data-profile="${esc(p.id)}">Vezi profil</button></div>
+          <div class="player-actions"><button class="gw-btn primary small" data-profile="${esc(p.id)}">Vezi profil</button>${isAdmin?` <button class="gw-btn small" data-inline-edit="${esc(p.id)}">✏️ Editează</button>`:''}</div>
         </div>
       </article>`).join('')}</div>`:
       (status==='loading'?'':'<div class="content-box"><div class="empty">Nu există încă jucători.</div></div>')}`;
   const s=root.querySelector('#playerSearch');
   s?.addEventListener('input',()=>{renderPlayers();const n=root.querySelector('#playerSearch');n?.focus();n?.setSelectionRange(n.value.length,n.value.length);});
   root.querySelectorAll('[data-profile]').forEach(b=>b.addEventListener('click',()=>showProfile(b.dataset.profile)));
+  root.querySelectorAll('[data-inline-edit]').forEach(b=>b.addEventListener('click',()=>editInline(b.dataset.inlineEdit)));
+  root.querySelector('#addPlayerInline')?.addEventListener('click',()=>editInline(null));
+}
+function editInline(id){
+  goTo('admin');
+  adminPage().then(()=>{if(isAdmin)openEditor(id);});
+}
+async function checkAdmin(){
+  try{const me=await api('/api/me');if(me.admin&&!isAdmin){isAdmin=true;renderPlayers();}}catch(e){}
 }
 function showProfile(id){
   const p=profiles.find(x=>x.id===id); if(!p)return;
   viewingId=id;
   const st=statsFor(p.name);
   $('players').innerHTML=`
-    <div class="gw-toolbar"><button class="gw-btn" id="backPlayers">← Înapoi la jucători</button></div>
+    <div class="gw-toolbar"><button class="gw-btn" id="backPlayers">← Înapoi la jucători</button>${isAdmin?` <button class="gw-btn primary" id="editProfileBtn">✏️ Editează</button>`:''}</div>
     <div class="player-profile">
       <div class="profile-photo">${p.image?`<img src="${img(p.image)}" alt="${esc(p.name)}" loading="lazy">`:'<div class="player-placeholder">👤</div>'}</div>
       <div class="content-box">
@@ -111,6 +121,7 @@ function showProfile(id){
       </div>
     </div>`;
   $('backPlayers').onclick=()=>{viewingId=null;renderPlayers();};
+  $('editProfileBtn')?.addEventListener('click',()=>editInline(id));
 }
 
 /* ---------------- administrare (ascunsă) ---------------- */
@@ -237,6 +248,7 @@ function init(){
   window.addEventListener('gw-stats-rendered',()=>{if(viewingId)showProfile(viewingId);});
   renderPlayers();
   route();
+  checkAdmin();
   loadProfiles();
   window.setInterval(loadProfiles,300000);          // sincronizare la 5 minute, ca la celelalte foi
   window.GW_PLAYERS={renderPlayers,adminPage};
