@@ -1,4 +1,4 @@
-name = "rough-surf-9e44"
+name = "games-world"
 main = "src/worker.js"
 compatibility_date = "2025-01-01"
 
@@ -9,4 +9,4 @@ run_worker_first = ["/api/*"]
 
 [[kv_namespaces]]
 binding = "DATA"
-id = ""   # Workers KV -> Create namespace (ex. games-world) -> copiezi ID-ul
+id = "PUNE-AICI-ID-UL-KV"   # Workers KV -> Create namespace (ex. games-world) -> copiezi ID-ul
