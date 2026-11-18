@@ -37,13 +37,16 @@ async function api(url,opts){
   if(!r.ok)throw new Error((data&&data.error)||('HTTP '+r.status));
   return data;
 }
-async function loadProfiles(){
+async function loadProfiles(force){
+  const before=JSON.stringify(profiles), prevStatus=status;
   try{
     const r=await (await fetch('/api/players',{cache:'no-store'})).json();
     profiles=r.players||[];lsSet(CACHE_KEY,profiles);status='ok';
   }catch(e){status=profiles.length?'cache':'error';}
+  if(force!==true&&before===JSON.stringify(profiles)&&prevStatus===status)return;   // nimic nou: nu atingem ecranul
+  const editorOpen=!!$('adminEditor')?.innerHTML.trim();
   renderPlayers();
-  if(isAdminPageOpen()&&isAdmin)renderDashboard();
+  if(isAdminPageOpen()&&isAdmin&&!editorOpen)renderDashboard();
 }
 const isAdminPageOpen=()=>$('admin')?.classList.contains('active');
 
@@ -223,13 +226,13 @@ async function savePlayer(){
   try{
     await api('/api/players',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id:editingId||undefined,name,competitor,joinDate,image:pendingImage})});
     editingId=null;pendingImage='';pendingPreview='';
-    await loadProfiles();renderDashboard();
+    await loadProfiles(true);renderDashboard();
   }catch(e){btn.disabled=false;msg.textContent='Eroare la salvare: '+e.message;}
 }
 async function deletePlayer(id){
   const p=profiles.find(x=>x.id===id);if(!p)return;
   if(!confirm('Ștergi definitiv profilul lui '+p.name+'?'))return;
-  try{await api('/api/players?id='+encodeURIComponent(id),{method:'DELETE'});await loadProfiles();renderDashboard();}
+  try{await api('/api/players?id='+encodeURIComponent(id),{method:'DELETE'});await loadProfiles(true);renderDashboard();}
   catch(e){alert('Eroare la ștergere: '+e.message);}
 }
 
@@ -249,10 +252,10 @@ function init(){
   renderPlayers();
   route();
   checkAdmin();
-  loadProfiles();
+  loadProfiles(true);
   window.setInterval(()=>{if(!document.hidden)loadProfiles();},20000);   // profilurile se actualizează la 20 de secunde
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadProfiles();});
-  window.addEventListener('focus',loadProfiles);
+  window.addEventListener('focus',()=>loadProfiles());
   window.GW_PLAYERS={renderPlayers,adminPage};
 }
 document.addEventListener('DOMContentLoaded',init);
