@@ -9,4 +9,4 @@ run_worker_first = ["/api/*"]
 
 [[kv_namespaces]]
 binding = "DATA"
-id = "PUNE-AICI-ID-UL-KV"   # Workers KV -> Create namespace (ex. games-world) -> copiezi ID-ul
+id = "7c72d7115fe04261a5e103b8ec8aadec"   # Workers KV -> Create namespace (ex. games-world) -> copiezi ID-ul
