@@ -1,9 +1,14 @@
 (function(){
   'use strict';
+  // Sincronizăm toate foile relevante, nu doar prima foaie din fiecare document.
+  // Astfel Clasament/Goluri/Cartonașe OSM și toate foile Co-Op rămân actualizate.
   const SOURCES=[
-    {group:'osm',sheet:'Record ',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUQXscDdkXeMojhH_qNr0o16RFJ8p5Nak8YH9GlrxAfEqigsgxl3y0Jj5f5rJKVGFgU2_UHZjYvGQ3/pub?output=csv',label:'Palmares OSM'},
-    {group:'coop',sheet:'Total ',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vRt1ERcvjLJfYr1CXycj6hQ9PHTXIvQ_L1eaBSVlTGfWPTxuRBM4bmOJSrJQnnQvXbmdxCxzhbsJWhH/pub?output=csv',label:'Stats Co-Op'},
-    {group:'pes',sheet:'Record',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSmBNa8xbq88eFbXZ4MlQXGaSm9O2eV_RrKZVDn12xIIfTCpu0klhDpOOXQrT-EFsoiywYzU_89oiVZ/pub?output=csv',label:'Tabela PES'}
+    {group:'osm',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vRUQXscDdkXeMojhH_qNr0o16RFJ8p5Nak8YH9GlrxAfEqigsgxl3y0Jj5f5rJKVGFgU2_UHZjYvGQ3/pub?output=csv',
+      sheets:['Record ','Clasament','Goluri','Cartonașe','Meciuri','Balon de aur','Gheata de Aur'],label:'Palmares OSM'},
+    {group:'coop',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vRt1ERcvjLJfYr1CXycj6hQ9PHTXIvQ_L1eaBSVlTGfWPTxuRBM4bmOJSrJQnnQvXbmdxCxzhbsJWhH/pub?output=csv',
+      sheets:['Total ','Vali','Mihăiță','George','VMA','Fronică'],label:'Stats Co-Op'},
+    {group:'pes',url:'https://docs.google.com/spreadsheets/d/e/2PACX-1vSmBNa8xbq88eFbXZ4MlQXGaSm9O2eV_RrKZVDn12xIIfTCpu0klhDpOOXQrT-EFsoiywYzU_89oiVZ/pub?output=csv',
+      sheets:['Record','Campionatu','Golaveraj','Serie victorieinfrangere'],label:'Tabela PES'}
   ];
   const $=id=>document.getElementById(id);
   const setStatus=(message,state='')=>{const el=$('syncStatus');if(el)el.innerHTML=`<i class="sync-dot ${state}"></i><span>${message}</span>`;};
@@ -15,8 +20,9 @@
     const clean=rows.filter(r=>r.some(v=>String(v).trim()!=='' )).map(r=>r.map(v=>{const s=String(v).trim();if(!s)return null;if(/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(s))return Number(s);if(/^[-+]?\d+,\d+$/.test(s))return Number(s.replace(',','.'));return s;}));
     while(clean.length&&clean[clean.length-1].every(v=>v==null))clean.pop();return clean;
   }
-  async function fetchRows(source){
-    const url=source.url+(source.url.includes('?')?'&':'?')+'_gw='+Date.now();
+  async function fetchRows(source,sheet){
+    const sep=source.url.includes('?')?'&':'?';
+    const url=source.url+sep+'sheet='+encodeURIComponent(sheet)+'&_gw='+Date.now();
     const response=await fetch(url,{method:'GET',mode:'cors',cache:'no-store'});
     if(!response.ok)throw new Error('HTTP '+response.status);
     const text=await response.text();
@@ -27,7 +33,29 @@
     if(syncAll.running)return false;syncAll.running=true;setStatus('Se sincronizează…','busy');if($('syncLog'))$('syncLog').textContent='';
     const previous=window.GAMES_WORLD_DATA||{};const next={...previous};let success=0,errors=0,changed=false;
     try{
-      for(const source of SOURCES){try{const rows=await fetchRows(source);const old=JSON.stringify(next[source.group]?.[source.sheet]||[]);if(old!==JSON.stringify(rows))changed=true;next[source.group]={...(next[source.group]||{}),[source.sheet]:rows};success++;log(`✓ ${source.label}: ${rows.length} rânduri — foaia „${source.sheet.trim()}”`);}catch(err){errors++;log(`✗ ${source.label}: ${err.message}`);}}
+      for(const source of SOURCES){
+        for(const sheet of source.sheets){
+          try{
+            const rows=await fetchRows(source,sheet);
+            const group=next[source.group]||{};
+            const oldKey=Object.keys(group).find(k=>String(k).trim().toLowerCase()===sheet.trim().toLowerCase())||sheet;
+            const old=JSON.stringify(group[oldKey]||[]);
+            if(old!==JSON.stringify(rows))changed=true;
+            const updated={...group};
+            // Curățăm o eventuală dublură "Total " / "Total" sau "Record " / "Record".
+            Object.keys(updated).forEach(k=>{
+              if(k!==oldKey&&k.trim().toLowerCase()===sheet.trim().toLowerCase())delete updated[k];
+            });
+            updated[sheet]=rows;
+            next[source.group]=updated;
+            success++;
+            log(`✓ ${source.label}: ${rows.length} rânduri — foaia „${sheet.trim()}”`);
+          }catch(err){
+            errors++;
+            log(`✗ ${source.label} / ${sheet}: ${err.message}`);
+          }
+        }
+      }
       if(success){window.GAMES_WORLD_DATA=next;localStorage.setItem('gamesWorldLiveDataV2',JSON.stringify(next));localStorage.setItem('gamesWorldLiveSyncAtV2',new Date().toISOString());if(changed&&typeof window.GW_RENDER_STATS==='function')window.GW_RENDER_STATS();}
       if(success===3&&!errors)setStatus('Live sincronizat','ok');else if(success)setStatus(`Parțial: ${success}/3 foi live`,'err');else setStatus('Offline — date Excel locale','err');
       return success===3;

@@ -21,6 +21,49 @@
     return table(headers,body.map(r=>headers.map((_,i)=>r[i]??'')),{nowrap:true});
   }
   function recordRows(rows){return `<div class="record-list">${rows.filter(r=>r.some(v=>v!==null&&v!==''&&v!==undefined)).map(r=>`<div class="record"><span>${esc(r[0])}</span><b>${esc(r[1])}</b></div>`).join('')}</div>`;}
+
+  // Elimină dublurile de foi create de diferențe precum "Total " vs "Total"
+  // sau "Record " vs "Record". Păstrăm prima foaie cu același nume normalizat.
+  function uniqueSheetNames(data){
+    const seen=new Set(), out=[];
+    Object.keys(data||{}).forEach(name=>{
+      const key=clean(name).toLowerCase();
+      if(!seen.has(key)){seen.add(key);out.push(name);}
+    });
+    return out;
+  }
+
+  // Unele foi OSM conțin mai multe clasamente în aceeași foaie Excel:
+  // Total + Superliga + LaLiga + Bundesliga + Ligue 1 + Seria A + Premier League.
+  // Le afișăm ca secțiuni separate, nu ca un singur tabel foarte lung.
+  function splitSections(rows){
+    const sections=[], cur=[];
+    const flush=()=>{if(cur.length){sections.push(cur.splice(0,cur.length));}};
+    (rows||[]).forEach(r=>{
+      const nonEmpty=r&&r.some(v=>v!==null&&v!==''&&v!==undefined);
+      if(!nonEmpty){flush();return;}
+      const first=clean(r[0]).toLowerCase();
+      if(/^\d+\.\s*nume\b/.test(first)||/^nume\s*$/.test(first)){
+        if(cur.length)flush();
+      }
+      cur.push(r);
+    });
+    flush();
+    return sections;
+  }
+
+  function renderSectionedOsm(name,rows){
+    const sections=splitSections(rows);
+    if(sections.length<=1)return box(name,raw(rows));
+    return sections.map((sec,i)=>{
+      const title=i===0 ? '📊 Total' : `🏆 ${clean(sec[0][1]||'Clasament '+(i+1)).replace(/^.*?Puncte\s+/i,'')}`;
+      const heads=(sec[0]||[]).map((v,j)=>clean(v)||`Coloana ${j+1}`);
+      const body=sec.slice(1).filter(r=>r.some(v=>v!==null&&v!==''&&v!==undefined))
+        .map(r=>heads.map((_,j)=>r[j]??''));
+      return box(title,table(heads,body,{nowrap:true}));
+    }).join('');
+  }
+
   function renderSheet(group,name,rows){
     if(group==='coop'){
       if(name.trim()==='Total'){
@@ -31,13 +74,14 @@
       }
       return box('👤 '+name,raw(rows));
     }
-    if(group==='pes'&&name==='Record')return recordRows(rows);
-    if(group==='osm'&&(name==='Record '||name==='Record'))return recordRows(rows);
-    if(group==='osm'&&name==='Meciuri')return box('📅 Meciuri',raw(rows));
+    if(group==='pes'&&clean(name)==='Record')return recordRows(rows);
+    if(group==='osm'&&clean(name)==='Record')return recordRows(rows);
+    if(group==='osm'&&(clean(name)==='Clasament'||clean(name)==='Goluri'))return renderSectionedOsm(name,rows);
+    if(group==='osm'&&clean(name)==='Meciuri')return box('📅 Meciuri',raw(rows));
     return box(name,raw(rows));
   }
   function sheetPage(group,rootId,data,filename,label){
-    const names=Object.keys(data||{});
+    const names=uniqueSheetNames(data);
     if(!names.length){put(rootId,'<div class="empty">Nu există date disponibile.</div>');return;}
     put(rootId,`<div class="page-intro"><h3>${group==='coop'?'📊 Stats Co-Op':group==='pes'?'⚽ Tabela PES':'🏅 Palmares OSM'}</h3><p>${group==='coop'?'Statistici generale și foi individuale pentru fiecare jucător.':group==='pes'?'Campionat, golaveraj, serii și recorduri.':'Clasament, goluri, cartonașe, meciuri și trofee.'}</p></div>${tabs(group,names)}<div id="${group}Body"></div>${download(filename,label)}`);
     const root=$(rootId);
